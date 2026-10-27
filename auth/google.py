@@ -8,6 +8,41 @@ router = APIRouter(
 )
 
 
+# =========================================================
+# LOGIN GOOGLE
+# =========================================================
+
+@router.get("/google")
+def google_login():
+
+    try:
+
+        result = supabase.auth.sign_in_with_oauth({
+            "provider": "google",
+            "options": {
+                "redirect_to": (
+                    "http://127.0.0.1:8000"
+                    "/api/auth/google/callback"
+                )
+            }
+        })
+
+        return {
+            "url": result.url
+        }
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Login Google gagal: {str(e)}"
+        )
+
+
+# =========================================================
+# GOOGLE CALLBACK
+# =========================================================
+
 @router.get("/google/callback")
 def google_callback(code: str):
 
@@ -18,6 +53,7 @@ def google_callback(code: str):
         })
 
         if not result.user or not result.session:
+
             raise HTTPException(
                 status_code=401,
                 detail="Login Google gagal"

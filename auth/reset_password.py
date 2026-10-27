@@ -3,11 +3,8 @@ from pydantic import BaseModel
 
 from supabase_client import (
     supabase,
-    SUPABASE_URL,
-    SUPABASE_KEY
+    get_supabase_admin
 )
-
-from supabase import create_client
 
 
 router = APIRouter(
@@ -28,6 +25,10 @@ def reset_password(
 
     try:
 
+        # =================================================
+        # 1. VALIDASI ACCESS TOKEN
+        # =================================================
+
         result = supabase.auth.get_user(
             data.access_token
         )
@@ -42,23 +43,73 @@ def reset_password(
                 )
             )
 
-        recovery_client = create_client(
-            SUPABASE_URL,
-            SUPABASE_KEY
+
+        user_id = result.user.id
+
+        print("====================================")
+        print("🔐 RESET PASSWORD")
+        print("USER ID:", user_id)
+        print("EMAIL:", result.user.email)
+        print("====================================")
+
+
+        # =================================================
+        # 2. VALIDASI PASSWORD BARU
+        # =================================================
+
+        if len(data.new_password) < 8:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Password minimal 8 karakter."
+            )
+
+
+        # =================================================
+        # 3. AMBIL ADMIN CLIENT
+        # =================================================
+
+        admin = get_supabase_admin()
+
+
+        # =================================================
+        # 4. UPDATE PASSWORD USER
+        # =================================================
+
+        admin.auth.admin.update_user_by_id(
+            user_id,
+            {
+                "password": data.new_password
+            }
         )
 
-        recovery_client.auth.update_user({
-            "password": data.new_password
-        })
+
+        print(
+            "✅ PASSWORD BERHASIL DIUBAH"
+        )
+
+
+        # =================================================
+        # 5. RESPONSE
+        # =================================================
 
         return {
+            "success": True,
             "message": "Password berhasil diubah."
         }
 
+
     except HTTPException:
+
         raise
 
+
     except Exception as e:
+
+        print(
+            "❌ ERROR RESET PASSWORD:",
+            repr(e)
+        )
 
         raise HTTPException(
             status_code=400,
