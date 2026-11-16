@@ -8,6 +8,7 @@ from supabase.client import ClientOptions
 load_dotenv()
 
 
+
 # =========================================================
 # ENVIRONMENT
 # =========================================================
