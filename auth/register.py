@@ -4,12 +4,11 @@ import secrets
 
 import hashlib
 
-import smtplib
+import requests
 
 
 from datetime import datetime, timedelta, timezone
 
-from email.message import EmailMessage
 
 
 from fastapi import APIRouter, HTTPException
@@ -107,87 +106,43 @@ def send_verification_email(
     otp: str
 ):
 
-    smtp_email = os.getenv("SMTP_EMAIL")
+    # Brevo lewat HTTPS: Railway memblokir SMTP keluar.
+    # Pengirim = SMTP_EMAIL, harus sudah diverifikasi sebagai sender di Brevo.
+    api_key = os.getenv("BREVO_API_KEY")
 
-    smtp_password = os.getenv("SMTP_PASSWORD")
+    sender = os.getenv("SMTP_EMAIL")
 
+    if not api_key:
+        raise Exception("BREVO_API_KEY tidak ditemukan di env")
 
-    # -----------------------------------------------------
-    # CHECK ENV
-    # -----------------------------------------------------
+    if not sender:
+        raise Exception("SMTP_EMAIL tidak ditemukan di env")
 
-    if not smtp_email:
-
-        raise Exception(
-            "SMTP_EMAIL tidak ditemukan di .env"
-        )
-
-    if not smtp_password:
-
-        raise Exception(
-            "SMTP_PASSWORD tidak ditemukan di .env"
-        )
-
-
-    # -----------------------------------------------------
-    # EMAIL
-    # -----------------------------------------------------
-
-    message = EmailMessage()
-
-    message["From"] = smtp_email
-
-    message["To"] = email
-
-    message["Subject"] = (
-        "Kode Verifikasi Akun Langkah Baswara"
-    )
-
-    message.set_content(
-        f"""Halo!
-
+    res = requests.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={"api-key": api_key},
+        json={
+            "sender": {"name": "Langkah Baswara", "email": sender},
+            "to": [{"email": email}],
+            "subject": "Kode Verifikasi Akun Langkah Baswara",
+            "textContent": f"""Halo!
 
 Terima kasih sudah mendaftar di Langkah Baswara.
 
-
-Kode OTP verifikasi akun kamu:
-
-
-{otp}
-
+Kode OTP verifikasi akun kamu: {otp}
 
 Kode ini berlaku selama 30 menit.
 
-
-Jika kamu tidak merasa melakukan pendaftaran,
-
-abaikan email ini.
-
+Jika kamu tidak merasa melakukan pendaftaran, abaikan email ini.
 
 Salam,
-
-Langkah Baswara
-
-"""
+Langkah Baswara""",
+        },
+        timeout=30,
     )
 
-
-    # -----------------------------------------------------
-    # CONNECT GMAIL SMTP
-    # -----------------------------------------------------
-
-    with smtplib.SMTP_SSL(
-        "smtp.gmail.com",
-        465,
-        timeout=30
-    ) as server:
-
-        server.login(
-            smtp_email,
-            smtp_password
-        )
-
-        server.send_message(message)
+    if not res.ok:
+        raise Exception(f"Brevo {res.status_code}: {res.text}")
 
 
 # =========================================================
