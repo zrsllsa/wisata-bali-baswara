@@ -16,7 +16,7 @@ from auth.profile import router as profile_router
 from jelajahi import destinasi, rute
 from jelajahi import destinasi, rute, detail
 
-from beranda import search, populer, simpan, dikunjungi
+from beranda import search, populer, simpan, dikunjungi, status
 
 # CREATE APP
 app = FastAPI(
@@ -59,6 +59,7 @@ app.include_router(search.router, prefix="/api")
 app.include_router(populer.router, prefix="/api")
 app.include_router(simpan.router, prefix="/api")
 app.include_router(dikunjungi.router, prefix="/api")
+app.include_router(status.router, prefix="/api")
 
 
 @app.get("/")
