@@ -34,3 +34,17 @@ def get_current_user(
             status_code=401,
             detail="Invalid or expired token"
         )
+
+optional_security = HTTPBearer(auto_error=False)
+
+
+def get_optional_user(
+    credentials: HTTPAuthorizationCredentials = Depends(optional_security)
+):
+    """User dari token kalau ada dan valid; selain itu None (tamu)."""
+    if not credentials:
+        return None
+    try:
+        return supabase.auth.get_user(credentials.credentials).user
+    except Exception:
+        return None

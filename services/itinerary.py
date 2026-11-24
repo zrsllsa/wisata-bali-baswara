@@ -153,10 +153,11 @@ def urutkan_rute(start: tuple[float, float], items: list[dict]):
 
 
 # ---------- Pipeline utama ----------
-def buat_itinerary(lat, lng, radius_km, hari, kategori, preferensi=None) -> dict:
+def buat_itinerary(lat, lng, radius_km, hari, kategori, preferensi=None, exclude_ids=()) -> dict:
     semua = [dict(r) for r in load_wisata()]  # salin supaya cache tidak berubah
 
     kandidat = filter_kategori(semua, kategori)
+    kandidat = [r for r in kandidat if r["id"] not in exclude_ids]  # sudah dikunjungi user
     kandidat = tambah_jarak(kandidat, lat, lng)
     kandidat = filter_radius(kandidat, radius_km)
 
