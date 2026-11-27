@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 
-from supabase_client import supabase
+from supabase_client import get_supabase_auth
 
 router = APIRouter(
     prefix="/api/auth",
@@ -27,7 +27,7 @@ def login(data: LoginRequest):
         print("EMAIL:", email)
         print("====================================")
 
-        auth_result = supabase.auth.sign_in_with_password({
+        auth_result = get_supabase_auth().auth.sign_in_with_password({
             "email": email,
             "password": data.password
         })

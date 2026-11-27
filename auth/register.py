@@ -428,6 +428,67 @@ def register(data: RegisterRequest):
 
 
 # =========================================================
+# KIRIM ULANG OTP
+# =========================================================
+
+class ResendOTPRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/resend-otp")
+def resend_otp(data: ResendOTPRequest):
+
+    email = str(data.email).lower().strip()
+    admin = get_supabase_admin()
+    masa_berlaku = timedelta(minutes=30)
+
+    try:
+        rows = (
+            admin.table("pending_registrations")
+            .select("expires_at")
+            .eq("email", email)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not rows:
+            raise HTTPException(
+                status_code=400,
+                detail="Data pendaftaran tidak ditemukan. Silakan daftar kembali."
+            )
+
+        expires_at = datetime.fromisoformat(rows[0]["expires_at"].replace("Z", "+00:00"))
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        # jeda 60 detik sejak OTP terakhir, supaya tidak bisa dipakai membanjiri email
+        if datetime.now(timezone.utc) - (expires_at - masa_berlaku) < timedelta(seconds=60):
+            raise HTTPException(
+                status_code=429,
+                detail="Tunggu 1 menit sebelum meminta kode baru."
+            )
+
+        otp = str(secrets.randbelow(1_000_000)).zfill(6)
+
+        # kirim dulu: kalau email gagal, kode lama tetap berlaku
+        send_verification_email(email=email, otp=otp)
+
+        admin.table("pending_registrations").update({
+            "otp_hash": hashlib.sha256(otp.encode("utf-8")).hexdigest(),
+            "expires_at": (datetime.now(timezone.utc) + masa_berlaku).isoformat()
+        }).eq("email", email).execute()
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print("ERROR RESEND OTP:", repr(e))
+        raise HTTPException(status_code=500, detail="Gagal mengirim ulang kode OTP.")
+
+    return {"success": True, "message": "Kode OTP baru sudah dikirim."}
+
+
+# =========================================================
 # VERIFY OTP
 # =========================================================
 

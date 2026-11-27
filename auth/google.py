@@ -4,22 +4,28 @@ from urllib.parse import urlencode
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
-from supabase_client import supabase
+from supabase_client import get_supabase_auth
 
 load_dotenv()
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+# Client yang sama dipakai di /google dan callback karena code_verifier PKCE disimpan di dalamnya.
+# shortcut: dua orang yang login Google di detik yang sama bisa saling menimpa verifier;
+# kalau jadi masalah, simpan verifier per user (cookie atau tabel).
+oauth = get_supabase_auth()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 
 
 @router.get("/google")
+@router.post("/google")  # frontend memanggilnya dengan POST
 def google_login():
     
     try:
 
-        result = supabase.auth.sign_in_with_oauth({
+        result = oauth.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
                 "redirect_to": f"{BACKEND_URL}/api/auth/google/callback"
@@ -52,7 +58,7 @@ def google_callback(code: str | None = None, error: str | None = None):
         )
 
     try:
-        result = supabase.auth.exchange_code_for_session({"auth_code": code})
+        result = oauth.auth.exchange_code_for_session({"auth_code": code})
 
         if not result.user or not result.session:
             raise HTTPException(status_code=401, detail="Login Google gagal")
